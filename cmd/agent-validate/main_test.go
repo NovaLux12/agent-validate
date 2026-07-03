@@ -6,6 +6,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -140,4 +141,69 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func TestCLIJSONOutputPass(t *testing.T) {
+	bin := buildCLI(t)
+	repoRoot := findRepoRoot(t)
+	cmd := exec.Command(bin, "--json", filepath.Join(repoRoot, "examples", "minimal.agent.json"))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("expected exit 0 on minimal example with --json, got: %v\n%s", err, out)
+	}
+	var report map[string]any
+	if err := json.Unmarshal(out, &report); err != nil {
+		t.Fatalf("--json output is not valid JSON: %v\n%s", err, out)
+	}
+	if report["version"] != "0.1.0" {
+		t.Errorf("expected version 0.1.0, got %v", report["version"])
+	}
+	summary, ok := report["summary"].(map[string]any)
+	if !ok {
+		t.Fatalf("missing or wrong-typed summary in JSON output: %v", report["summary"])
+	}
+	if summary["overall"] != "warn" {
+		t.Errorf("expected overall=warn (minimal has lint warnings), got %v", summary["overall"])
+	}
+}
+
+func TestCLIJSONOutputSchemaFail(t *testing.T) {
+	bin := buildCLI(t)
+	tmp := filepath.Join(t.TempDir(), "broken.json")
+	if err := os.WriteFile(tmp, []byte(`{"version":"1.0","agent":{"name":"x"},"owner":{"name":"y"}}`), 0o644); err != nil {
+		t.Fatalf("write tmp: %v", err)
+	}
+	cmd := exec.Command(bin, "--json", tmp)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected non-zero exit on broken card with --json, got 0")
+	}
+	var report map[string]any
+	if err := json.Unmarshal(out, &report); err != nil {
+		t.Fatalf("--json output is not valid JSON on schema failure: %v\n%s", err, out)
+	}
+	summary, ok := report["summary"].(map[string]any)
+	if !ok {
+		t.Fatalf("missing summary in JSON output")
+	}
+	if summary["overall"] != "fail" {
+		t.Errorf("expected overall=fail, got %v", summary["overall"])
+	}
+}
+
+func TestCLIJSONSuppressesText(t *testing.T) {
+	bin := buildCLI(t)
+	repoRoot := findRepoRoot(t)
+	cmd := exec.Command(bin, "--json", filepath.Join(repoRoot, "examples", "minimal.agent.json"))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("unexpected error: %v\n%s", err, out)
+	}
+	s := string(out)
+	// Should not contain text-mode markers.
+	for _, bad := range []string{"loaded ", "schema validation: PASS", "lint:"} {
+		if strings.Contains(s, bad) {
+			t.Errorf("--json output should not contain %q, got: %s", bad, s)
+		}
+	}
 }
