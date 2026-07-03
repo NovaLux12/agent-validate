@@ -46,7 +46,7 @@ func (o FetchOptions) withDefaults() FetchOptions {
 // Version is the agent-validate release tag, surfaced in the default
 // User-Agent and printed by the CLI's --version flag. Bump in lockstep
 // with CHANGELOG.md.
-const Version = "0.1.0"
+const Version = "0.2.0"
 
 // FetchURL retrieves an agent.json from a remote URL. It returns the
 // raw bytes so callers can pass them straight to Validate and Lint.

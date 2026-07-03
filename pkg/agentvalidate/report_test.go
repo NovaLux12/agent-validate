@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewReportPass(t *testing.T) {
-	r := NewReport("0.1.0", "agent.json", 260, nil, nil, true)
+	r := NewReport("0.2.0", "agent.json", 260, nil, nil, true)
 	if !r.Summary.SchemaPass {
 		t.Errorf("expected schema_pass=true")
 	}
@@ -29,7 +29,7 @@ func TestNewReportSchemaFail(t *testing.T) {
 	errs := []Result{
 		{PropertyPath: "agent.handle", Message: "pattern mismatch"},
 	}
-	r := NewReport("0.1.0", "agent.json", 100, errs, nil, true)
+	r := NewReport("0.2.0", "agent.json", 100, errs, nil, true)
 	if r.Summary.SchemaPass {
 		t.Errorf("expected schema_pass=false")
 	}
@@ -45,7 +45,7 @@ func TestNewReportLintOnly(t *testing.T) {
 	warnings := []Warning{
 		{Code: "NO-ENDPOINTS", Path: "endpoints", Message: "no endpoints"},
 	}
-	r := NewReport("0.1.0", "agent.json", 260, nil, warnings, false)
+	r := NewReport("0.2.0", "agent.json", 260, nil, warnings, false)
 	if !r.Summary.SchemaPass {
 		t.Errorf("expected schema_pass=true when schema not run")
 	}
@@ -62,7 +62,7 @@ func TestNewReportSchemaPassWithWarnings(t *testing.T) {
 		{Code: "NO-ENDPOINTS", Path: "endpoints", Message: "no endpoints"},
 		{Code: "NO-UPDATED-AT", Path: "updated_at", Message: "missing"},
 	}
-	r := NewReport("0.1.0", "agent.json", 260, nil, warnings, true)
+	r := NewReport("0.2.0", "agent.json", 260, nil, warnings, true)
 	if !r.Summary.SchemaPass {
 		t.Errorf("expected schema_pass=true")
 	}
@@ -75,7 +75,7 @@ func TestNewReportSchemaPassWithWarnings(t *testing.T) {
 }
 
 func TestReportJSON(t *testing.T) {
-	r := NewReport("0.1.0", "agent.json", 260, nil, nil, true)
+	r := NewReport("0.2.0", "agent.json", 260, nil, nil, true)
 	b, err := r.JSON()
 	if err != nil {
 		t.Fatalf("JSON() failed: %v", err)
@@ -90,7 +90,7 @@ func TestReportJSON(t *testing.T) {
 }
 
 func TestReportJSONCompact(t *testing.T) {
-	r := NewReport("0.1.0", "agent.json", 260, nil, nil, true)
+	r := NewReport("0.2.0", "agent.json", 260, nil, nil, true)
 	b, err := r.JSONCompact()
 	if err != nil {
 		t.Fatalf("JSONCompact() failed: %v", err)
@@ -102,15 +102,15 @@ func TestReportJSONCompact(t *testing.T) {
 }
 
 func TestReportString(t *testing.T) {
-	r := NewReport("0.1.0", "agent.json", 260, nil, nil, true)
+	r := NewReport("0.2.0", "agent.json", 260, nil, nil, true)
 	s := r.String()
-	if !strings.Contains(s, `"version": "0.1.0"`) {
+	if !strings.Contains(s, `"version": "0.2.0"`) {
 		t.Errorf("String() missing version: %s", s)
 	}
 }
 
 func TestReportJSONRoundTrip(t *testing.T) {
-	r := NewReport("0.1.0", "agent.json", 260,
+	r := NewReport("0.2.0", "agent.json", 260,
 		[]Result{{PropertyPath: "agent.handle", Message: "bad"}},
 		[]Warning{{Code: "H001", Path: "agent.handle", Message: "warn"}},
 		true)
@@ -123,7 +123,7 @@ func TestReportJSONRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(b, &back); err != nil {
 		t.Fatalf("JSON round-trip unmarshal failed: %v", err)
 	}
-	if back["version"] != "0.1.0" {
+	if back["version"] != "0.2.0" {
 		t.Errorf("version mismatch: %v", back["version"])
 	}
 	if back["source"] != "agent.json" {
@@ -134,14 +134,14 @@ func TestReportJSONRoundTrip(t *testing.T) {
 func TestNewReportSchemaSkippedPasses(t *testing.T) {
 	// When ranSchema=false, overall should be "warn" if there are
 	// warnings, or "pass" if there aren't — never "fail".
-	r := NewReport("0.1.0", "agent.json", 260, nil, nil, false)
+	r := NewReport("0.2.0", "agent.json", 260, nil, nil, false)
 	if r.Summary.Overall != "pass" {
 		t.Errorf("expected pass when schema skipped and no warnings, got %s", r.Summary.Overall)
 	}
 }
 
 func TestReportTimestampFormat(t *testing.T) {
-	r := NewReport("0.1.0", "agent.json", 260, nil, nil, true)
+	r := NewReport("0.2.0", "agent.json", 260, nil, nil, true)
 	// Timestamp should be valid RFC3339.
 	if r.Timestamp == "" {
 		t.Fatalf("timestamp is empty")

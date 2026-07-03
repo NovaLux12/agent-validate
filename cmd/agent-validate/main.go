@@ -36,7 +36,7 @@ import (
 	"github.com/NovaLux12/agent-validate/pkg/agentvalidate"
 )
 
-const toolVersion = "0.1.0"
+const toolVersion = "0.2.0"
 
 func main() {
 	// Sub-command style: pick validate, lint, or all. We default to "all".

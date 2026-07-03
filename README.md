@@ -150,7 +150,7 @@ structured JSON report instead of text:
 
 ```json
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "source": "agent.json",
   "bytes": 260,
   "timestamp": "2026-07-03T22:25:48Z",

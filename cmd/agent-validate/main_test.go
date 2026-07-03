@@ -155,7 +155,7 @@ func TestCLIJSONOutputPass(t *testing.T) {
 	if err := json.Unmarshal(out, &report); err != nil {
 		t.Fatalf("--json output is not valid JSON: %v\n%s", err, out)
 	}
-	if report["version"] != "0.1.0" {
+	if report["version"] != "0.2.0" {
 		t.Errorf("expected version 0.1.0, got %v", report["version"])
 	}
 	summary, ok := report["summary"].(map[string]any)
