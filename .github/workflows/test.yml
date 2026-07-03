@@ -32,7 +32,14 @@ jobs:
         run: |
           ./dist/agent-validate examples/minimal.agent.json
           ./dist/agent-validate examples/kai.agent.json
-          ./dist/agent-validate --quiet examples/team.agents.json
+          # team.agents.json is intentionally NOT a single-card document
+          # (it's a roster), so we expect non-zero exit. Verify the
+          # failure mode is the documented one rather than a panic.
+          if ./dist/agent-validate --quiet examples/team.agents.json; then
+            echo "FAIL: team.agents.json should not pass single-card schema"
+            exit 1
+          fi
+          echo "OK: team.agents.json correctly fails single-card validation"
 
   self-validate:
     name: self-validate agent-card.json
