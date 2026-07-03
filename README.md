@@ -67,6 +67,7 @@ go build -ldflags="-s -w" -o agent-validate ./cmd/agent-validate
 agent-validate [flags] <file-or-URL|->
 
 Flags:
+  -json                   output results as JSON for CI pipelines (implies --quiet)
   -mode string             what to run: validate (schema only), lint, or all (default "all")
   -lint-warnings-fail      exit 2 when lint warnings are present (default: exit 0)
   -no-color                disable ANSI styling in output
@@ -91,8 +92,8 @@ agent-validate ./my-agent.json
 # Just schema
 agent-validate --mode validate ./my-agent.json
 
-# Just lint
-agent-validate --mode lint ./my-agent.json
+# JSON output for CI pipelines
+agent-validate --json ./my-agent.json | jq '.summary.overall'
 
 # Lint and treat warnings as failures (good for CI)
 agent-validate --lint-warnings-fail ./my-agent.json
@@ -119,6 +120,8 @@ agent-validate -dump-schema ./schema.json
 
 ## Output format
 
+### Text (default)
+
 Schema validation failures render as:
 
 ```text
@@ -139,6 +142,34 @@ Lint warnings render as:
 
 Each warning carries a **stable code** (e.g. `H003`, `CAP-DUP`,
 `NO-ENDPOINTS`) suitable for filtering in CI scripts.
+
+### JSON (`--json`)
+
+For CI pipelines and programmatic consumers, pass `--json` to emit a
+structured JSON report instead of text:
+
+```json
+{
+  "version": "0.1.0",
+  "source": "agent.json",
+  "bytes": 260,
+  "timestamp": "2026-07-03T22:25:48Z",
+  "schema": {"valid": true, "errors": []},
+  "lint": {"warnings": [...]},
+  "summary": {"schema_pass": true, "lint_warnings": 2, "overall": "warn"}
+}
+```
+
+The `summary.overall` field is `"pass"`, `"warn"`, or `"fail"` —
+check it with `jq` in CI scripts:
+
+```sh
+result=$(agent-validate --json ./agent.json | jq -r '.summary.overall')
+[ "$result" = "pass" ] || exit 1
+```
+
+`--json` implies `--quiet` (no text-mode status lines). Exit codes
+are the same as text mode.
 
 ## Codes
 

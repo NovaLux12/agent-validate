@@ -48,6 +48,7 @@ func main() {
 		warnExit    = flag.Bool("lint-warnings-fail", false, "exit 2 when lint warnings are present (default: exit 0)")
 		timeout     = flag.Duration("timeout", 30*time.Second, "total timeout for URL fetches")
 		schemaOut   = flag.String("dump-schema", "", "if set, write the embedded JSON Schema to this file and exit")
+		jsonOut     = flag.Bool("json", false, "output results as JSON for CI pipelines (implies --quiet)")
 	)
 	flag.Usage = usage
 	flag.Parse()
@@ -94,26 +95,38 @@ func main() {
 	if err != nil {
 		fail(3, "could not load %s: %v", target, err)
 	}
-	if !*quiet {
+	if !*quiet && !*jsonOut {
 		fmt.Fprintf(os.Stdout, "loaded %d bytes from %s\n", len(data), source)
 	}
 
 	// ---- schema validation ----
+	var schemaResults []agentvalidate.Result
 	if doValidate {
-		results, err := agentvalidate.Validate(ctx, data)
+		var err error
+		schemaResults, err = agentvalidate.Validate(ctx, data)
 		if err != nil {
+			if *jsonOut {
+				printJSONError(toolVersion, source, err)
+			}
 			fail(3, "schema validation could not run: %v", err)
 		}
-		if len(results) == 0 {
-			if !*quiet {
+		if len(schemaResults) == 0 {
+			if !*quiet && !*jsonOut {
 				printSuccess(*noColor, "schema validation: PASS")
 			}
 		} else {
-			printFail(*noColor, "schema validation: FAIL (%d issue(s))", len(results))
-			for _, r := range results {
-				fmt.Fprintf(os.Stdout, "  - %s\n", r.String())
+			if !*jsonOut {
+				printFail(*noColor, "schema validation: FAIL (%d issue(s))", len(schemaResults))
+				for _, r := range schemaResults {
+					fmt.Fprintf(os.Stdout, "  - %s\n", r.String())
+				}
 			}
-			os.Exit(1)
+			// In JSON mode we collect and continue to lint,
+			// so the report can show both schema errors AND
+			// lint warnings in one document.
+			if !*jsonOut {
+				os.Exit(1)
+			}
 		}
 	}
 
@@ -121,6 +134,24 @@ func main() {
 	var warnings []agentvalidate.Warning
 	if doLint {
 		warnings = agentvalidate.Lint(data)
+	}
+
+	// ---- JSON output ----
+	if *jsonOut {
+		report := agentvalidate.NewReport(toolVersion, source, len(data), schemaResults, warnings, doValidate)
+		b, err := report.JSON()
+		if err != nil {
+			fail(3, "could not marshal JSON report: %v", err)
+		}
+		fmt.Fprintln(os.Stdout, string(b))
+		// Exit codes follow the same rules as text mode.
+		if doValidate && len(schemaResults) > 0 {
+			os.Exit(1)
+		}
+		if len(warnings) > 0 && *warnExit {
+			os.Exit(2)
+		}
+		return
 	}
 
 	if !doLint {
@@ -192,6 +223,7 @@ Flags:
 Examples:
   agent-validate path/to/agent.json
   agent-validate --mode lint path/to/agent.json
+  agent-validate --json path/to/agent.json | jq .summary.overall
   agent-validate https://example.com/.well-known/agent.json
   cat agent.json | agent-validate -
   agent-validate --dump-schema schema.json
@@ -203,6 +235,23 @@ Exit codes:
   3  fetch / I/O error
   4  argument error
 `)
+}
+
+// printJSONError outputs a JSON error report when the validator itself
+// fails (e.g., schema could not compile, fetch error). This keeps the
+// --json contract: always emit valid JSON, even on error.
+func printJSONError(version, source string, err error) {
+	report := agentvalidate.Report{
+		Version:   version,
+		Source:    source,
+		Bytes:     0,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Schema:    agentvalidate.SchemaReport{Valid: false, Errors: []agentvalidate.Result{{Message: err.Error()}}},
+		Lint:      agentvalidate.LintReport{},
+		Summary:   agentvalidate.SummaryReport{SchemaPass: false, Overall: "fail"},
+	}
+	b, _ := report.JSON()
+	fmt.Fprintln(os.Stderr, string(b))
 }
 
 func fail(code int, format string, args ...any) {

@@ -4,6 +4,31 @@ All notable changes to `agent-validate` are documented here. The project
 does **not** follow strict SemVer yet (we're pre-0.2); the format is
 loose-keep-a-tidy-trail.
 
+## 0.2.0 — 2026-07-03
+
+Add JSON output mode for CI pipelines and programmatic consumers.
+
+**Added:**
+
+- **`--json` flag.** When set, the CLI emits a structured JSON report
+  instead of text output. The report includes schema validation
+  results, lint warnings, and a summary with an `overall` field
+  (`"pass"`, `"warn"`, `"fail"`) for quick CI decisions. `--json`
+  implies `--quiet` (no text-mode status lines). Exit codes are
+  unchanged. Example:
+  ```json
+  {
+    "summary": {"schema_pass": true, "lint_warnings": 2, "overall": "warn"}
+  }
+  ```
+- **`agentvalidate.Report`** type in the public package API. Consumers
+  using agent-validate as a Go library can now construct structured
+  reports programmatically via `NewReport(...)` and marshal with
+  `Report.JSON()` or `Report.JSONCompact()`.
+
+**Tests:** 19 → 31 (added 8 report tests + 3 CLI integration tests for
+`--json` mode: pass case, schema-fail case, text-suppression case).
+
 ## 0.1.1 — 2026-07-03
 
 Quick post-launch fixes from the M3 verifier pass.
