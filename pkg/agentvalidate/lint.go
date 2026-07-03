@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // Warning is an advisory lint finding. Unlike Result (which mirrors
@@ -31,13 +32,19 @@ func (w Warning) String() string {
 	return fmt.Sprintf("%s: %s", w.Code, w.Message)
 }
 
-// handlePattern is the Fediverse-style handle format required by the
-// schema's pattern keyword. We duplicate it here as a regexp so we
-// can warn on borderline shapes (e.g., uppercase, suspicious TLD) that
-// the schema's strict regex may not catch but a human reviewing the
-// card would still want to flag.
+// handleRe matches the Fediverse-style handle format required by the
+// upstream schema's pattern keyword. We use it as a precondition: a
+// handle that doesn't match this is malformed at the schema level and
+// the schema validator will already complain, so we don't bother
+// emitting H002 for it (would just duplicate the same complaint).
+//
+// handleCanonicalRe is a stricter lowercase-only variant used to
+// surface the "valid but unconventional" cases the schema accepts:
+// uppercase, mixed case, etc. H002 fires only when handleRe matches
+// but handleCanonicalRe does not.
 var (
-	handleRe = regexp.MustCompile(`^@[a-zA-Z0-9_-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	handleRe          = regexp.MustCompile(`^@[a-zA-Z0-9_-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	handleCanonicalRe = regexp.MustCompile(`^@[a-z0-9_-]+@[a-z0-9.-]+\.[a-z]{2,}$`)
 	// Bare-reserved domains that are syntactically valid handles but
 	// semantically noisy: gmail.com etc. shouldn't appear as the
 	// "domain" half of an agent handle.
@@ -72,9 +79,7 @@ func Lint(data []byte) []Warning {
 	out = append(out, lintCapabilities(doc)...)
 	out = append(out, lintEndpoints(doc)...)
 	out = append(out, lintTrust(doc)...)
-	out = append(out, lintProtocols(doc)...)
 	out = append(out, lintTimestamps(doc)...)
-	out = append(out, lintVoice(doc)...)
 	return out
 }
 
@@ -117,12 +122,15 @@ func lintAgent(doc map[string]any) []Warning {
 	var out []Warning
 
 	handle := getStr(a, "handle")
-	if handle != "" && !handleRe.MatchString(handle) {
+	// H002 fires only for handles that pass the schema's pattern but
+	// fail the canonical (lowercase) form. Schema-invalid handles get
+	// the same complaint from the schema validator; no point in
+	// duplicating it here.
+	if handle != "" && handleRe.MatchString(handle) && !handleCanonicalRe.MatchString(handle) {
 		out = append(out, Warning{
 			Path:    "agent.handle",
 			Code:    "H002",
-			Message: "handle does not look like @name@domain — verify this is intentional",
-			// Hard failure will also surface from schema; this is the lint nudge.
+			Message: "handle is not lowercase-canonical (e.g., uppercase or mixed case) — verify this is intentional; the conventional form is all-lowercase",
 		})
 	}
 	if handle != "" && handleReservedDomainRe.MatchString(strings.ToLower(handle)) {
@@ -134,7 +142,10 @@ func lintAgent(doc map[string]any) []Warning {
 	}
 
 	desc := getStr(a, "description")
-	if len(desc) > 280 {
+	// Rune count, not byte count: a 100-character CJK description is
+	// 300 bytes but perfectly readable; we want to flag genuinely long
+	// descriptions that exceed the social-card soft cap.
+	if utf8.RuneCountInString(desc) > 280 {
 		out = append(out, Warning{
 			Path:    "agent.description",
 			Code:    "DESC-TOO-LONG",
@@ -306,25 +317,6 @@ func lintTrust(doc map[string]any) []Warning {
 	return out
 }
 
-// lintProtocols flags inconsistencies between declared protocols and
-// capabilities (e.g. claiming MCP without listing any MCP-flavored
-// capability).
-func lintProtocols(doc map[string]any) []Warning {
-	p := get(doc, "protocols")
-	if p == nil {
-		return nil
-	}
-	var out []Warning
-	if mcp, ok := p["mcp"].(bool); ok && mcp {
-		// Soft check only — we don't have a registered MCP capability tag
-		// namespace to verify against.
-		caps := getArr(doc, "capabilities")
-		_ = caps // future: warn if MCP-claimed but no capability hints at tools/server
-		_ = mcp
-	}
-	return out
-}
-
 // lintTimestamps nudges cards to keep created_at / updated_at fresh.
 func lintTimestamps(doc map[string]any) []Warning {
 	var out []Warning
@@ -336,26 +328,4 @@ func lintTimestamps(doc map[string]any) []Warning {
 		})
 	}
 	return out
-}
-
-// lintVoice is intentionally minimal — we don't enforce TTS provider
-// choices. The only soft check: voice.name shouldn't impersonate a
-// known human author or a competitor's published persona.
-func lintVoice(doc map[string]any) []Warning {
-	v := get(doc, "voice")
-	if v == nil {
-		return nil
-	}
-	name := getStr(v, "name")
-	if name == "" {
-		return nil
-	}
-	// Heuristic: if voice.name == agent.name, that's almost always
-	// fine — many agents pick their own name as the voice label.
-	agent := get(doc, "agent")
-	if agent != nil && getStr(agent, "name") == name {
-		return nil
-	}
-	// Soft check only — we don't want to over-warn.
-	return nil
 }

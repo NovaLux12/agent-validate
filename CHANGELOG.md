@@ -4,6 +4,48 @@ All notable changes to `agent-validate` are documented here. The project
 does **not** follow strict SemVer yet (we're pre-0.2); the format is
 loose-keep-a-tidy-trail.
 
+## 0.1.1 — 2026-07-03
+
+Quick post-launch fixes from the M3 verifier pass.
+
+**Fixed:**
+
+- **fetch.go redirect off-by-one.** `CheckRedirect` was rejecting the
+  Nth redirect when it should have rejected the (N+1)th. With
+  `MaxRedirects: 5` the validator actually allowed only 4 redirects.
+  Changed `len(via) >= N` to `len(via) > N` and updated the inline
+  comment so the next reader doesn't repeat the same mistake.
+- **fetch.go `User-Agent` now includes the real version** (was a
+  hardcoded `/dev` placeholder). Added `Version` constant in the
+  package and updated the default UA. Verified via
+  `TestFetchURLUserAgentIncludesVersion`.
+- **fetch.go `ResolveWellKnownURL` strips URL userinfo.** A
+  `https://user:pass@host` input no longer leaks credentials into the
+  output path. Verified via a new case in `TestResolveWellKnownURL`.
+- **lint.go H002 now actually catches uppercase handles.** The
+  H002 regex was a verbatim copy of the schema pattern, so it never
+  fired on a schema-valid uppercase handle. Added
+  `handleCanonicalRe` (lowercase-only) and rewired H002 to fire only
+  when the handle passes the schema pattern but fails the canonical
+  form. The schema validator catches the truly malformed; H002 now
+  catches the "valid but unconventional" cases the schema misses.
+- **lint.go description length now uses rune count, not byte count.**
+  A 100-rune CJK description (300 bytes) no longer falsely triggers
+  `DESC-TOO-LONG`. Verified via `TestLintDescriptionCJKRuneCount`.
+
+**Removed:**
+
+- `lintVoice` and `lintProtocols` were no-op stubs. The functions
+  computed values and discarded them with `_ = …`, making the file
+  read like an unimplemented policy rather than a deliberate "no
+  checks" decision. Removed both functions and their call sites.
+
+**Tests:** 13 → 19 (added `TestFetchURLRedirectLimit`,
+`TestFetchURLUserAgentIncludesVersion`,
+`TestLintUppercaseHandle`, `TestLintNoH002OnLowercase`,
+`TestLintDescriptionCJKRuneCount`, plus a userinfo case in
+`TestResolveWellKnownURL`).
+
 ## 0.1.0 — 2026-07-03
 
 First public release. Schema validation against the embedded

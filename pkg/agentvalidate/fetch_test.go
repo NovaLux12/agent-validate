@@ -22,6 +22,9 @@ func TestResolveWellKnownURL(t *testing.T) {
 		{"ftp://nope.example.com", "", true},
 		{"file:///etc/passwd", "", true},
 		{"://malformed", "", true},
+		// Userinfo (username:password) must be stripped so the result
+		// is safe to log or surface in error messages.
+		{"https://user:secret@example.com", "https://example.com/.well-known/agent.json", false},
 	}
 	for _, tc := range cases {
 		got, err := ResolveWellKnownURL(tc.in)
@@ -104,5 +107,57 @@ func TestFetchURLBodyTooLarge(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("expected oversize-body error, got nil")
+	}
+}
+
+func TestFetchURLRedirectLimit(t *testing.T) {
+	// Server issues 5 redirects in a chain; with MaxRedirects=5 the
+	// client should follow all 5 and reach the final handler.
+	// Pre-fix, MaxRedirects=5 actually allowed only 4 (off-by-one).
+	redirects := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if redirects < 5 {
+			redirects++
+			http.Redirect(w, r, "/next", http.StatusFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	body, err := FetchURL(context.Background(), server.URL+"/start", FetchOptions{
+		Timeout:      2_000_000_000, // 2s
+		MaxRedirects: 5,
+	})
+	if err != nil {
+		t.Fatalf("expected to follow all 5 redirects, got error: %v", err)
+	}
+	if !strings.Contains(string(body), `"ok"`) {
+		t.Errorf("expected final body, got %q", body)
+	}
+	if redirects != 5 {
+		t.Errorf("expected 5 redirects issued, server saw %d", redirects)
+	}
+}
+
+func TestFetchURLUserAgentIncludesVersion(t *testing.T) {
+	var seenUA string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenUA = r.Header.Get("User-Agent")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	if _, err := FetchURL(context.Background(), server.URL, FetchOptions{Timeout: 1_000_000_000}); err != nil {
+		t.Fatalf("FetchURL: %v", err)
+	}
+	if !strings.Contains(seenUA, "agent-validate/") {
+		t.Errorf("expected User-Agent to identify agent-validate, got %q", seenUA)
+	}
+	if !strings.Contains(seenUA, Version) {
+		t.Errorf("expected User-Agent to include version %q, got %q", Version, seenUA)
 	}
 }

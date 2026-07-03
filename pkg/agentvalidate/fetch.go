@@ -38,10 +38,15 @@ func (o FetchOptions) withDefaults() FetchOptions {
 		o.MaxBodyBytes = 1 << 20 // 1 MiB
 	}
 	if o.UserAgent == "" {
-		o.UserAgent = "agent-validate/dev (https://github.com/NovaLux12/agent-validate)"
+		o.UserAgent = fmt.Sprintf("agent-validate/%s (+https://github.com/NovaLux12/agent-validate)", Version)
 	}
 	return o
 }
+
+// Version is the agent-validate release tag, surfaced in the default
+// User-Agent and printed by the CLI's --version flag. Bump in lockstep
+// with CHANGELOG.md.
+const Version = "0.1.0"
 
 // FetchURL retrieves an agent.json from a remote URL. It returns the
 // raw bytes so callers can pass them straight to Validate and Lint.
@@ -71,8 +76,15 @@ func FetchURL(ctx context.Context, rawURL string, opts FetchOptions) ([]byte, er
 
 	client := &http.Client{
 		Timeout: opts.Timeout,
+		// CheckRedirect is called BEFORE each redirect is followed.
+		// `via` contains the chain of past requests. When the Kth
+		// redirect is about to fire, len(via) == K, so to allow
+		// exactly N redirects we accept the redirect when
+		// len(via) < N+1 (i.e., len(via) <= N, equivalent to
+		// len(via)-1 < N). The pre-fix form `len(via) >= N` rejected
+		// the Nth redirect, off-by-one'ing the limit.
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) >= opts.MaxRedirects {
+			if len(via) > opts.MaxRedirects {
 				return fmt.Errorf("stopped after %d redirects", opts.MaxRedirects)
 			}
 			if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
@@ -133,9 +145,12 @@ func ResolveWellKnownURL(rawBase string) (string, error) {
 		return "", fmt.Errorf("invalid URL %q: only http and https", rawBase)
 	}
 	// Strip any path so we always land on /.well-known/agent.json
-	// at the root.
+	// at the root. We also strip UserInfo (username:password in
+	// https://user:pass@host/) so a result that ends up in logs,
+	// error messages, or CI output never carries credentials.
 	u.Path = ""
 	u.RawQuery = ""
 	u.Fragment = ""
+	u.User = nil
 	return strings.TrimRight(u.String(), "/") + "/.well-known/agent.json", nil
 }
