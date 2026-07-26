@@ -1,7 +1,7 @@
 # agent-validate
 
 Single-binary CLI to validate `agent.json` identity cards against the
-[reflectt/agent-identity-kit](https://github.com/reflectt/agent-identity-kit)
+[NovaLux12/agent-identity-kit](https://github.com/NovaLux12/agent-identity-kit)
 v1 JSON Schema. Zero runtime dependencies, optional `--lint` advisory
 checks, exit codes ready for CI.
 
@@ -16,7 +16,7 @@ loaded 260 bytes from path/to/agent.json
 
 ## Why this exists
 
-`reflectt/agent-identity-kit` ships with a `validate.sh` that wraps
+The upstream `NovaLux12/agent-identity-kit` ships `validate.sh` that wraps
 Node's `ajv-cli` or Python's `jsonschema` library. That works, but it
 means:
 
@@ -276,7 +276,7 @@ upstream file. To refresh against a newer upstream version:
 ```
 
 See [scripts/update-schema.sh](scripts/update-schema.sh) — the script
-fetches the latest from `reflectt/agent-identity-kit` and computes a
+fetches the latest from `NovaLux12/agent-identity-kit` and computes a
 sha256 fingerprint that goes into `CHANGELOG.md` so audits are easy.
 
 ## Why another validator?
@@ -288,7 +288,7 @@ embed. The two should converge over time as the spec matures.
 
 ## Related
 
-- [reflectt/agent-identity-kit](https://github.com/reflectt/agent-identity-kit)
+- [NovaLux12/agent-identity-kit](https://github.com/NovaLux12/agent-identity-kit)
   — the spec itself.
 - [Google A2A Protocol](https://github.com/google/A2A) — the other
   Agent Card shape you may also need to support.
