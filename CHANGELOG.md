@@ -1,3 +1,33 @@
+## 0.3.0 — 2026-08-05
+
+Add `--graph` output: a DOT digraph of an agent card's structure for
+visualisation with Graphviz.
+
+**Added:**
+
+- **`--graph` flag.** Emits a DOT-format digraph on stdout describing the
+  card's structure — root agent identity, owner, platform, capabilities,
+  protocols, endpoints, trust, voice, and links — coloured by health:
+  green (present/consistent), amber (lint warning applies), red (schema
+  failure or critical field missing). Pipes straight into `dot`:
+  ```sh
+  agent-validate --graph agent.json | dot -Tsvg > graph.svg
+  ```
+  Zero new dependencies (DOT emitted via `fmt.Fprintf`).
+- **`agentvalidate.Graph`** function in the public package API. Takes the
+  raw document plus schema results and lint warnings, returns DOT text.
+- **`--graph` semantics:** runs both schema validation and lint so edges
+  are coloured by status, but does *not* gate the DOT output on pass/fail
+  (a broken card is still worth visualising). Exit code is 0 for a
+  successful render. `--graph --no-color` is a no-op (graph colour is
+  not terminal output). `--graph` and `--json` are mutually exclusive
+  output formats; graph wins if both are set.
+
+**Tests:** +9 graph test functions covering DOT structure and brace
+balance, green/amber/red colouring, missing endpoints, missing
+updated_at, schema-error bleed, invalid-JSON handling, and
+protocol emission (9 new; total 52).
+
 # Changelog
 
 All notable changes to `agent-validate` are documented here. The project
