@@ -106,6 +106,9 @@ curl -s https://example.com/.well-known/agent.json | agent-validate -
 
 # Dump the embedded schema to disk
 agent-validate -dump-schema ./schema.json
+
+# Visualise the card structure as a Graphviz digraph
+agent-validate --graph ./my-agent.json | dot -Tsvg > graph.svg
 ```
 
 ## Exit codes
@@ -150,7 +153,7 @@ structured JSON report instead of text:
 
 ```json
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "source": "agent.json",
   "bytes": 260,
   "timestamp": "2026-07-03T22:25:48Z",
@@ -170,6 +173,35 @@ result=$(agent-validate --json ./agent.json | jq -r '.summary.overall')
 
 `--json` implies `--quiet` (no text-mode status lines). Exit codes
 are the same as text mode.
+
+### Graph (`--graph`)
+
+Pass `--graph` to emit a DOT-format digraph of the card's structure,
+ready to render with Graphviz:
+
+```sh
+agent-validate --graph agent.json | dot -Tsvg > graph.svg
+```
+
+The graph shows the root agent identity (name, handle, version), then
+the card's actual structure — owner, platform, capabilities, protocols,
+endpoints, trust, voice, and links — and colours everything by health:
+
+- **green** — present and consistent
+- **amber** — a soft lint warning applies (advisory)
+- **red** — a schema validation failure, or a critical field missing
+  (e.g. no `endpoints` block, stale `updated_at`)
+
+A small inline legend is included in the rendered output. `--graph`
+runs both schema validation and lint so colours are accurate, but does
+**not** gate the DOT on pass/fail — a broken card is still worth
+visualising (the red edges are the point). It exits 0 on a successful
+render. `--graph --no-color` is a no-op, and `--graph --json` yields a
+graph (graph wins; the two are mutually exclusive formats).
+
+The graph feature mirrors the v1 schema exactly: capability tags are
+flat strings and endpoints are top-level. It deliberately does **not**
+invent per-capability→endpoint edges that the schema doesn't express.
 
 ## Codes
 

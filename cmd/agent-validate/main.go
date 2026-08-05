@@ -36,7 +36,7 @@ import (
 	"github.com/NovaLux12/agent-validate/pkg/agentvalidate"
 )
 
-const toolVersion = "0.2.0"
+const toolVersion = "0.3.0"
 
 func main() {
 	// Sub-command style: pick validate, lint, or all. We default to "all".
@@ -49,6 +49,7 @@ func main() {
 		timeout     = flag.Duration("timeout", 30*time.Second, "total timeout for URL fetches")
 		schemaOut   = flag.String("dump-schema", "", "if set, write the embedded JSON Schema to this file and exit")
 		jsonOut     = flag.Bool("json", false, "output results as JSON for CI pipelines (implies --quiet)")
+		graphOut    = flag.Bool("graph", false, "emit a DOT digraph of the agent card structure (coloured by validation status)")
 	)
 	flag.Usage = usage
 	flag.Parse()
@@ -95,8 +96,29 @@ func main() {
 	if err != nil {
 		fail(3, "could not load %s: %v", target, err)
 	}
-	if !*quiet && !*jsonOut {
+	// In graph mode stdout must carry nothing but DOT — a stray banner
+	// would make the pipe into `dot` fail.
+	if !*quiet && !*jsonOut && !*graphOut {
 		fmt.Fprintf(os.Stdout, "loaded %d bytes from %s\n", len(data), source)
+	}
+
+	// ---- graph mode ----
+	// --graph emits a DOT digraph of the card's structure. It runs both
+	// schema validation and lint so edges can be coloured by health, but
+	// does NOT gate the DOT output on pass/fail (a broken card is still
+	// worth visualising — its red edges are the point). Exit code is 0
+	// for a successful rendering regardless of validation status, so the
+	// output is safe to pipe straight into `dot`. --graph and --json are
+	// mutually exclusive output formats; graph wins if both are set.
+	if *graphOut {
+		graphResults, _ := agentvalidate.Validate(ctx, data)
+		graphWarnings := agentvalidate.Lint(data)
+		dot, err := agentvalidate.Graph(data, graphResults, graphWarnings)
+		if err != nil {
+			fail(4, "could not render graph: %v", err)
+		}
+		fmt.Fprintln(os.Stdout, dot)
+		return
 	}
 
 	// ---- schema validation ----
@@ -224,6 +246,7 @@ Examples:
   agent-validate path/to/agent.json
   agent-validate --mode lint path/to/agent.json
   agent-validate --json path/to/agent.json | jq .summary.overall
+  agent-validate --graph path/to/agent.json | dot -Tsvg > graph.svg
   agent-validate https://example.com/.well-known/agent.json
   cat agent.json | agent-validate -
   agent-validate --dump-schema schema.json
@@ -232,7 +255,7 @@ Exit codes:
   0  valid (warnings only when --lint-warnings-fail is set)
   1  schema validation failed
   2  lint warnings (only with --lint-warnings-fail)
-  3  fetch / I/O error
+	3  fetch / I/O error
   4  argument error
 `)
 }
