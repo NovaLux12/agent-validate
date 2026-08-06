@@ -1,3 +1,15 @@
+## Unreleased
+
+### Docs
+
+- **README: explicitly document the v1.0-only scope.** The validator was
+  silently pinned to the v1.0 flat Agent Card schema while the
+  `agent-identity-kit` fork diverged to v1.1/v1.2/v1.2.1/v1.3, so a card
+  written against the newer lineage failed confusingly (`version: "1.3"`
+  not in enum `["1.0"]`) with no explanation. "About the spec" now states
+  the v1.0-only boundary up front, points v1.1+ card authors at the
+  fork's `validate.sh`, and links the multi-schema request in issue #4.
+
 ## 0.3.0 — 2026-08-05
 
 Add `--graph` output: a DOT digraph of an agent card's structure for

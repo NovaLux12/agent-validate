@@ -268,9 +268,26 @@ Or with the prebuilt binary:
 
 ## About the spec
 
-The validator targets the `agent.json` shape defined by the
-`reflectt/agent-identity-kit` v1 schema (embedded in this binary, see
-`pkg/agentvalidate/schema/agent.schema.json`). The shape is:
+> **v1.0 only.** `agent-validate` validates the **v1.0 flat** Agent Card
+> shape, and nothing else.
+>
+> The `agent-identity-kit` schema has since diverged: the maintained
+> fork added v1.1 (`kind`/`scope`/`operator`), v1.2 (web-of-trust
+> `trust.vouched_by[]`), v1.2.1 (signed revocation lists), and v1.3
+> (`offers[]`/`seeks[]` capability marketplace). **`agent-validate` is
+> not a validator for those.** It embeds the preserved v1.0 schema
+> (`pkg/agentvalidate/schema/agent.schema.json`), so a v1.3 card will
+> fail here immediately with `version: "1.3"` not in enum `["1.0"]`
+> — that is correct behaviour, not a bug.
+>
+> If you write cards against the v1.1+ lineage, use the fork's
+> `skill/scripts/validate.sh` (auto-detects v1.0–v1.3), not this binary.
+> Multi-schema support (`--v12`/`--v13`) in `agent-validate` is a
+> possible future release (see [issue #4](https://github.com/NovaLux12/agent-validate/issues/4));
+> it is not here today.
+
+Compare with the v1.0 flat shape this tool targets (embedded in this
+binary, see `pkg/agentvalidate/schema/agent.schema.json`):
 
 ```json
 {
@@ -301,7 +318,9 @@ A2A schema support here. (TODO: not yet implemented in 0.1.)
 ## Update the embedded schema
 
 `pkg/agentvalidate/schema/agent.schema.json` is a verbatim copy of the
-upstream file. To refresh against a newer upstream version:
+preserved **v1.0** upstream file (`agent.schema.json`) from
+`agent-identity-kit` — not the fork's current v1.1+ schema. To refresh
+against a newer upstream version:
 
 ```sh
 ./scripts/update-schema.sh
