@@ -2,8 +2,9 @@
 
 Single-binary CLI to validate `agent.json` identity cards against the
 [NovaLux12/agent-identity-kit](https://github.com/NovaLux12/agent-identity-kit)
-v1 JSON Schema. Zero runtime dependencies, optional `--lint` advisory
-checks, exit codes ready for CI.
+v1.0–v1.3 JSON Schemas. Zero runtime dependencies, optional `--lint` advisory
+checks, exit codes ready for CI. Auto-detects card version (`version` / `$schema`)
+and validates against the matching bundled schema.
 
 ```text
 $ agent-validate path/to/agent.json
@@ -268,23 +269,19 @@ Or with the prebuilt binary:
 
 ## About the spec
 
-> **v1.0 only.** `agent-validate` validates the **v1.0 flat** Agent Card
-> shape, and nothing else.
->
-> The `agent-identity-kit` schema has since diverged: the maintained
-> fork added v1.1 (`kind`/`scope`/`operator`), v1.2 (web-of-trust
-> `trust.vouched_by[]`), v1.2.1 (signed revocation lists), and v1.3
-> (`offers[]`/`seeks[]` capability marketplace). **`agent-validate` is
-> not a validator for those.** It embeds the preserved v1.0 schema
-> (`pkg/agentvalidate/schema/agent.schema.json`), so a v1.3 card will
-> fail here immediately with `version: "1.3"` not in enum `["1.0"]`
-> — that is correct behaviour, not a bug.
->
-> If you write cards against the v1.1+ lineage, use the fork's
-> `skill/scripts/validate.sh` (auto-detects v1.0–v1.3), not this binary.
-> Multi-schema support (`--v12`/`--v13`) in `agent-validate` is a
-> possible future release (see [issue #4](https://github.com/NovaLux12/agent-validate/issues/4));
-> it is not here today.
+`agent-validate` validates against **NovaLux12/agent-identity-kit v1.0–v1.3**.
+It bundles all four schemas (`agent.schema.json` for v1.0 and
+`agent-card.v1.1.json` / `v1.2.json` / `v1.3.json` for the fork lineage)
+and auto-selects the correct one from the card's `version` field (or
+`$schema` URL hint, falling back to the latest v1.3 which is
+backward-compatible with all prior versions). See `SupportedVersions()`
+in the Go API for the bundled list.
+
+v1.1 added `kind`/`scope`/`operator`/`owner:null` (autonomous agents),
+v1.2 added web-of-trust `trust.vouched_by[]` and signed-revocation
+`trust.revocation_url`, v1.3 added capability-marketplace `offers[]` /
+`seeks[]`. Cards using `x_novalux12_*` extensions also validate via
+`additionalProperties: true` in v1.1+.
 
 Compare with the v1.0 flat shape this tool targets (embedded in this
 binary, see `pkg/agentvalidate/schema/agent.schema.json`):
@@ -315,12 +312,12 @@ other. This tool targets the **foragents.dev** v1 shape only.
 If you need both, run two validators; or open an issue requesting
 A2A schema support here. (TODO: not yet implemented in 0.1.)
 
-## Update the embedded schema
+## Update the embedded schemas
 
-`pkg/agentvalidate/schema/agent.schema.json` is a verbatim copy of the
-preserved **v1.0** upstream file (`agent.schema.json`) from
-`agent-identity-kit` — not the fork's current v1.1+ schema. To refresh
-against a newer upstream version:
+`pkg/agentvalidate/schema/` bundles verbatim copies of
+`agent.schema.json` (v1.0) and `agent-card.v1.1.json` / `v1.2.json` /
+`v1.3.json` from `NovaLux12/agent-identity-kit`. To refresh against a
+newer upstream:
 
 ```sh
 ./scripts/update-schema.sh

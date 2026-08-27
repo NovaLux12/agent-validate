@@ -1,0 +1,497 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/NovaLux12/agent-identity-kit/blob/main/schema/agent-card.v1.1.json",
+  "title": "Agent Card (v1.1)",
+  "description": "A portable, machine-readable identity document for AI agents. v1.1 of the agent-identity-kit spec. Backward-compatible with v1.0 — every v1.0 card validates unchanged. Adds: agent.kind, operator, scope, trust.verification, trust.revoked, description_i18n, llms_txt endpoint, and unblocks top-level extensions via x_* prefix.",
+  "type": "object",
+  "required": ["version", "agent"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference URL. Should reference a v1.x schema from this repo."
+    },
+    "version": {
+      "type": "string",
+      "description": "Agent Card spec version this card conforms to.",
+      "enum": ["1.0", "1.1"],
+      "examples": ["1.1"]
+    },
+    "agent": {
+      "type": "object",
+      "description": "Core agent identity information.",
+      "required": ["name"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "Who actually operates this agent. RECOMMENDED. Without it, consumers cannot distinguish autonomous from human-operated agents, which makes owner semantics ambiguous.",
+          "enum": ["human-operated", "autonomous-ai-agent", "hybrid"],
+          "default": "human-operated"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the agent.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "handle": {
+          "type": "string",
+          "description": "Fediverse-style handle: @name@domain. RECOMMENDED. MUST be unique within the domain. Name portion SHOULD be lowercase alphanumeric (mixed-case allowed for portability — v1.1 relaxed from v1.0 SPEC text to match what existing ecosystems actually use).",
+          "pattern": "^@[A-Za-z0-9_](?:[A-Za-z0-9_-]{0,62}[A-Za-z0-9_])?@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,61}[A-Za-z0-9])?\\.[A-Za-z]{2,}$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of what the agent does. Max 500 characters.",
+          "maxLength": 500
+        },
+        "description_i18n": {
+          "type": "object",
+          "description": "Optional localised descriptions, keyed by BCP-47 language tag (e.g., 'en', 'en-GB', 'zh-Hans-CN'). Keys MUST match the BCP-47 pattern; values MUST be non-empty strings (max 500 chars). Consumers SHOULD fall back to 'description' if the requested locale is not present, and to the canonical 'description' field for the absolute fallback.",
+          "propertyNames": {
+            "description": "Keys MUST be valid BCP-47 language tags (RFC 5646). Permissive regex: 2-3 letter primary language subtag, optional subtags of 2-8 alphanumeric characters separated by hyphens. Examples: 'en', 'en-GB', 'de', 'zh-Hans', 'zh-Hans-CN', 'pt-BR'.",
+            "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Non-empty localised description string. Max 500 characters."
+          },
+          "examples": [
+            { "en": "Files bug reports and sends small PRs.", "en-GB": "Files bug reports and sends small PRs." }
+          ]
+        },
+        "avatar": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to an avatar image. SHOULD be square, minimum 256×256px."
+        },
+        "homepage": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to a human-readable profile page."
+        },
+        "tags": {
+          "type": "array",
+          "description": "Freeform tags for categorisation.",
+          "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$" },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "owner": {
+      "description": "The person or organisation accountable for this agent. REQUIRED when agent.kind is 'human-operated' or 'hybrid'. May be null or absent when agent.kind is 'autonomous-ai-agent'.",
+      "type": ["object", "null"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Name of the owner (person or organisation)."
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Owner's website."
+        },
+        "contact": {
+          "type": "string",
+          "description": "Contact email or URL for the owner."
+        },
+        "verified": {
+          "type": "boolean",
+          "description": "Whether ownership has been verified by a registry. Consumers SHOULD NOT trust self-declared verified: true.",
+          "default": false
+        }
+      },
+      "additionalProperties": false,
+      "examples": [
+        { "name": "Jane Smith" },
+        { "name": "Acme AI", "url": "https://acme.ai", "contact": "team@acme.ai", "verified": false },
+        null
+      ]
+    },
+    "operator": {
+      "description": "The human or system currently driving this agent. Peer of owner. Answers 'who is at the controls right now?' vs owner's 'who is accountable?'. For autonomous-ai-agent, operator is null. For human-operated, operator typically equals owner.",
+      "type": ["object", "null"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "contact": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "examples": [
+        { "name": "Jane Smith" },
+        null
+      ]
+    },
+    "platform": {
+      "type": "object",
+      "description": "Runtime environment metadata. All fields OPTIONAL.",
+      "properties": {
+        "runtime": {
+          "type": "string",
+          "description": "Agent runtime (e.g., 'openclaw', 'langchain', 'autogen', 'custom').",
+          "examples": ["openclaw"]
+        },
+        "model": {
+          "type": "string",
+          "description": "Primary model identifier.",
+          "examples": ["minimax/MiniMax-M3", "claude-sonnet-4-20250514", "gpt-4o"]
+        },
+        "model_fast": {
+          "type": "string",
+          "description": "Optional. Fast-path model used for low-latency tasks (e.g., action cycles). Helps consumers understand cost/latency profile.",
+          "examples": ["minimax/MiniMax-M2.7-highspeed"]
+        },
+        "model_local": {
+          "type": "string",
+          "description": "Optional. Comma-separated list of local models used for offline work (Ollama, etc.).",
+          "examples": ["ollama/mistral-nemo, ollama/qwen2.5:14b"]
+        },
+        "version": {
+          "type": "string",
+          "description": "Agent or runtime version (semver RECOMMENDED)."
+        },
+        "framework": {
+          "type": "string",
+          "description": "Framework or SDK used (e.g., 'crewai', 'autogen', 'custom')."
+        }
+      },
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "array",
+      "description": "Standardised capability tags describing what the agent can do. Enables capability-based discovery. Pair with scope (below) for trust calibration.",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]{0,62}(?::[a-z0-9][a-z0-9-]{0,62})?$"
+      },
+      "uniqueItems": true,
+      "examples": [
+        ["code-generation", "code-review", "web-search", "file-operations", "task-management"]
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "description": "Trust-calibration flags: what this agent commits to NOT do (and what it WILL do). Peer of capabilities. Where capabilities[] answers 'what can this agent do?', scope answers 'what has this agent committed to refuse?' and 'what is in scope for its mission?'. RECOMMENDED for all cards. Two flags are encouraged as ecosystem-wide standards: 'impersonates_humans: false' (hard requirement for federation) and 'signs_legal: false' for autonomous agents.",
+      "properties": {
+        "impersonates_humans": {
+          "type": "boolean",
+          "description": "Whether this agent will impersonate humans. RECOMMENDED: false for all agents. Any agent that won't commit to this is unsafe to federate with.",
+          "default": false
+        },
+        "signs_legal": {
+          "type": "boolean",
+          "description": "Whether this agent will sign legal documents on someone's behalf. RECOMMENDED: false for autonomous agents.",
+          "default": false
+        },
+        "makes_purchases": {
+          "type": "boolean",
+          "description": "Whether this agent will make purchases or enter financial commitments.",
+          "default": false
+        },
+        "files_bugs": {
+          "type": "boolean",
+          "description": "Whether this agent files bug reports upstream.",
+          "default": false
+        },
+        "sends_prs": {
+          "type": "boolean",
+          "description": "Whether this agent sends pull requests to upstream projects.",
+          "default": false
+        },
+        "writes_external_content": {
+          "type": "boolean",
+          "description": "Whether this agent publishes content externally (blog posts, social media, etc.).",
+          "default": false
+        }
+      },
+      "additionalProperties": true,
+      "examples": [
+        { "impersonates_humans": false, "signs_legal": false, "makes_purchases": false, "files_bugs": true, "sends_prs": true }
+      ]
+    },
+    "protocols": {
+      "type": "object",
+      "description": "Interoperability protocols the agent supports.",
+      "properties": {
+        "mcp": {
+          "type": "boolean",
+          "description": "Supports Model Context Protocol.",
+          "default": false
+        },
+        "a2a": {
+          "type": "boolean",
+          "description": "Supports Google A2A Protocol.",
+          "default": false
+        },
+        "agent-card": {
+          "type": "string",
+          "description": "Agent Card spec version supported.",
+          "enum": ["1.0", "1.1"],
+          "default": "1.1"
+        },
+        "http": {
+          "type": "boolean",
+          "description": "Supports HTTP API endpoints.",
+          "default": false
+        }
+      },
+      "additionalProperties": true
+    },
+    "endpoints": {
+      "type": "object",
+      "description": "URLs for interacting with this agent.",
+      "properties": {
+        "card": {
+          "type": "string",
+          "format": "uri",
+          "description": "Canonical URL of this Agent Card."
+        },
+        "inbox": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for sending messages to the agent."
+        },
+        "status": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL returning the agent's current status."
+        },
+        "api": {
+          "type": "string",
+          "format": "uri",
+          "description": "Base URL for the agent's API."
+        },
+        "health": {
+          "type": "string",
+          "format": "uri",
+          "description": "Health check endpoint. SHOULD return 200 when operational."
+        },
+        "llms_txt": {
+          "type": "string",
+          "format": "uri",
+          "description": "Cross-reference to the domain's llms.txt file."
+        }
+      },
+      "additionalProperties": true
+    },
+    "voice": {
+      "type": "object",
+      "description": "Voice and audio identity for the agent. Enables TTS-based interactions and audio branding.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Human-readable name of the voice."
+        },
+        "style": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Description of the voice style and personality."
+        },
+        "preferredTTS": {
+          "type": "string",
+          "description": "Preferred TTS provider (e.g., 'elevenlabs', 'openai', 'google', 'azure')."
+        },
+        "voiceId": {
+          "type": "string",
+          "description": "Provider-specific voice identifier."
+        },
+        "sampleUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to a sample audio clip demonstrating the agent's voice."
+        }
+      },
+      "additionalProperties": false
+    },
+    "trust": {
+      "type": "object",
+      "description": "Trust signals and verification status.",
+      "properties": {
+        "level": {
+          "type": "string",
+          "description": "Maturity / track-record tier. One dimension of trust: how long has this identity existed and what is its operating history. Orthogonal to verification (below).",
+          "enum": ["new", "active", "established", "verified"],
+          "default": "new"
+        },
+        "verification": {
+          "type": "string",
+          "description": "Who has validated this card. Orthogonal to level: a 'new' card can be 'registry-verified' and an 'established' card can still be 'self-declared'. v1.0 SPEC.md had this dimension but conflated it with level. v1.1 separates them.",
+          "enum": ["unverified", "self-declared", "domain-verified", "registry-verified"],
+          "default": "unverified"
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this agent identity was first created (ISO 8601)."
+        },
+        "updated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this card was last modified (ISO 8601)."
+        },
+        "verified_by": {
+          "type": "array",
+          "description": "List of registries or verifiers that have validated this card. May be a domain (e.g., 'example.com') or a full URL.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "attestations": {
+          "type": "array",
+          "description": "Third-party attestation records. v1.0 schema used a different shape (by/at/claim); v1.1 uses the SPEC shape (issuer/type/issued_at/expires_at/proof) for both schema and spec consistency.",
+          "items": {
+            "type": "object",
+            "required": ["issuer", "type", "issued_at"],
+            "properties": {
+              "issuer": {
+                "type": "string",
+                "description": "Domain or identifier of the attesting party."
+              },
+              "type": {
+                "type": "string",
+                "description": "Attestation type (e.g., 'domain-ownership', 'capability-verified', 'identity-vouched')."
+              },
+              "issued_at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When the attestation was issued."
+              },
+              "expires_at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When the attestation expires."
+              },
+              "proof": {
+                "type": "string",
+                "format": "uri",
+                "description": "URL to verification proof or signed document."
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "revoked": {
+          "type": "boolean",
+          "description": "Whether this card has been revoked. If true, consumers MUST NOT trust this card regardless of other fields. Set by the owner/operator on compromise or retirement.",
+          "default": false
+        },
+        "revoked_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this card was revoked. REQUIRED when revoked is true."
+        },
+        "revoked_reason": {
+          "type": "string",
+          "description": "Why this card was revoked. Free-text, human-readable."
+        },
+        "ttl": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Recommended cache duration in seconds. Default 3600."
+        }
+      },
+      "additionalProperties": false
+    },
+    "links": {
+      "type": "object",
+      "description": "Additional links related to the agent. Was present in v1.0 schema but not documented in v1.0 SPEC; v1.1 documents it.",
+      "properties": {
+        "website": {
+          "type": "string",
+          "format": "uri"
+        },
+        "repo": {
+          "type": "string",
+          "format": "uri"
+        },
+        "social": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["platform", "url"],
+            "properties": {
+              "platform": { "type": "string" },
+              "url": { "type": "string", "format": "uri" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "documentation": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "additionalProperties": true
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this Agent Card document was created."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this Agent Card document was last updated."
+    }
+  },
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "description": "Conditional: owner is REQUIRED and must be an object (not null) when agent.kind is human-operated or hybrid. Note: requires agent.kind to be explicitly present — if kind is absent, the conditional does not fire and owner is not required. This preserves the v1.0 back-compat invariant that v1.0 cards without kind are valid v1.1 cards.",
+      "if": {
+        "properties": {
+          "agent": {
+            "required": ["kind"],
+            "properties": {
+              "kind": { "enum": ["human-operated", "hybrid"] }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": ["owner"],
+        "properties": {
+          "owner": { "type": "object", "required": ["name"] }
+        }
+      }
+    },
+    {
+      "description": "Conditional: operator.name is REQUIRED when operator is present and not null.",
+      "if": {
+        "properties": {
+          "operator": { "type": "object" }
+        }
+      },
+      "then": {
+        "properties": {
+          "operator": { "required": ["name"] }
+        }
+      }
+    },
+    {
+      "description": "Conditional: trust.revoked_at is REQUIRED when trust.revoked is true. Note: requires trust.revoked to be explicitly present and set to true — if trust is absent or revoked is missing/false, the conditional does not fire and revoked_at is not required. This preserves the v1.0 back-compat invariant that v1.0 cards without a revoked field are valid v1.1 cards.",
+      "if": {
+        "properties": {
+          "trust": {
+            "required": ["revoked"],
+            "properties": { "revoked": { "const": true } }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "trust": { "required": ["revoked_at"] }
+        }
+      }
+    }
+  ]
+}

@@ -1,14 +1,20 @@
-## Unreleased
+## 0.3.0 — 2026-08-27
 
-### Docs
+Support NovaLux12/agent-identity-kit v1.1–v1.3 schemas (closes #4).
 
-- **README: explicitly document the v1.0-only scope.** The validator was
-  silently pinned to the v1.0 flat Agent Card schema while the
-  `agent-identity-kit` fork diverged to v1.1/v1.2/v1.2.1/v1.3, so a card
-  written against the newer lineage failed confusingly (`version: "1.3"`
-  not in enum `["1.0"]`) with no explanation. "About the spec" now states
-  the v1.0-only boundary up front, points v1.1+ card authors at the
-  fork's `validate.sh`, and links the multi-schema request in issue #4.
+**Validator:**
+
+- **Bundles v1.1, v1.2, v1.3 schemas** alongside the original v1.0 (`pkg/agentvalidate/schema/agent-card.v1.{1,2,3}.json`).
+- **`Validate` now auto-detects version** from the card's `version` field (preferred) or `$schema` URL hint, selecting the matching schema; unknown/absent versions fall back to latest (v1.3, backward-compatible). Added `ValidateWithVersion` for explicit pinning, plus `LoadedSchemaForVersion`, `SchemaBytesForVersion`, `SupportedVersions` helpers.
+- **Fixes valid v1.1+ rejections**: `owner:null` (autonomous agents), `scope` (incl. `impersonates_humans`, `x_novalux12_*` extensions), top-level `x_*` extensions, `offers[]`/`seeks[]` (v1.3), `trust.vouched_by[]`/revocation fields. The live Nova Lux card (`novalux12.github.io/agent-card/agent.json`) now validates.
+- **Backward compatible**: v1.0 cards still validate (v1.0 schema preserved; LatestVersion = v1.3 passes all prior cards).
+- **Version bump 0.2.0 → 0.3.0** (this release also ships the 0.3.0 `--graph` feature that was documented but not version-bumped).
+
+**Tests:** + schema version tests, + v1.1+ fixture tests against all kit examples (autonomous-nova-lux, hybrid-kestrel, marketplace, vouched-by-bob, revocation-aware).
+
+**Docs:** README "About the spec" now documents v1.0–v1.3 multi-schema support; `scripts/update-schema.sh` refreshed to sync all versions.
+
+## 0.3.0 — 2026-08-05 (graph feature, now folded into 0.3.0 release)
 
 ## 0.3.0 — 2026-08-05
 
