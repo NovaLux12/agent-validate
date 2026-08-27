@@ -1,46 +1,14 @@
 name: test
-
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
 permissions:
   contents: read
-
 jobs:
-  test:
-    name: Go test + build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.26'
-          cache: true
-      - name: go mod download
-        run: go mod download
-      - name: go test ./...
-        run: go test -race -count=1 ./...
-      - name: go build
-        run: |
-          go build -ldflags="-s -w" -o dist/agent-validate ./cmd/agent-validate
-          file dist/agent-validate
-      - name: dogfood
-        run: |
-          ./dist/agent-validate examples/minimal.agent.json
-          ./dist/agent-validate examples/kai.agent.json
-          # team.agents.json is intentionally NOT a single-card document
-          # (it's a roster), so we expect non-zero exit. Verify the
-          # failure mode is the documented one rather than a panic.
-          if ./dist/agent-validate --quiet examples/team.agents.json; then
-            echo "FAIL: team.agents.json should not pass single-card schema"
-            exit 1
-          fi
-          echo "OK: team.agents.json correctly fails single-card validation"
-
+  ci:
+    uses: NovaLux12/.github/.github/workflows/go-ci.yml@main
   self-validate:
     name: self-validate agent-card.json
     runs-on: ubuntu-latest
@@ -59,6 +27,26 @@ jobs:
           # team.agents.json is intentionally NOT a single-agent card
           # so we expect non-zero exit; verify the failure mode is sane.
           if /tmp/av --quiet examples/team.agents.json; then
+            echo "FAIL: team.agents.json should not pass single-card schema"
+            exit 1
+          fi
+          echo "OK: team.agents.json correctly fails single-card validation"
+  dogfood:
+    name: dogfood
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+      - run: go build -ldflags="-s -w" -o dist/agent-validate ./cmd/agent-validate
+      - name: dogfood
+        run: |
+          ./dist/agent-validate examples/minimal.agent.json
+          ./dist/agent-validate examples/kai.agent.json
+          if ./dist/agent-validate --quiet examples/team.agents.json; then
             echo "FAIL: team.agents.json should not pass single-card schema"
             exit 1
           fi
