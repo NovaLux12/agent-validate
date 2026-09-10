@@ -310,7 +310,7 @@ similar-looking but **different** Agent Card shape (`name`,
 other. This tool targets the **foragents.dev** v1 shape only.
 
 If you need both, run two validators; or open an issue requesting
-A2A schema support here. (TODO: not yet implemented in 0.1.)
+A2A schema support here.
 
 ## Update the embedded schemas
 
