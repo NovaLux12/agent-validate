@@ -1,4 +1,44 @@
+# Changelog
+
+All notable changes to `agent-validate` are documented here. The project
+does **not** follow strict SemVer yet (we're pre-0.2); the format is
+loose-keep-a-tidy-trail.
+
+## 0.3.1 — 2026-10-21
+
+Fix the install instructions and add the release automation they were missing.
+
+**Fixed:**
+
+- **The "Direct download" install command pointed at a URL that could never
+  resolve.** It named `agent-validate_linux_amd64.tar.gz`, but no release in
+  this repo's history has published a `.tar.gz` — v0.2.0 published raw
+  binaries and `SHA256SUMS`. The command is corrected in both places it
+  appeared (the install section and the CI example) to download the raw
+  binary by the name that is actually published, and to mark it executable.
+- **Releases shipped with no assets at all.** This repo had no release
+  workflow — only `test.yml` — so v0.2.0's binaries were attached by hand and
+  every release since (v0.3.0) published `assets_count: 0`. That is why even
+  the corrected filename 404'd against `releases/latest/`: the latest release
+  had nothing to hand out.
+
+**Added:**
+
+- **`.github/workflows/release.yml`.** Builds the six platform binaries,
+  checksums them, and attaches them to the tag release. The asset names are
+  the ones v0.2.0 already published, so the naming stays continuous with the
+  existing release.
+- **The released binary reports its own tag.** `toolVersion` moves from
+  `const` to `var` so the release build can inject the version via `-X`; a
+  const cannot be overridden at link time. A released binary now agrees with
+  the `go install` path instead of contradicting it.
+
+**Docs:** this file's three duplicate `## 0.3.0` headings are folded into one
+section, and the document title now precedes the version sections rather than
+sitting 48 lines below the first of them.
+
 ## 0.3.0 — 2026-08-27
+
 
 Support NovaLux12/agent-identity-kit v1.1–v1.3 schemas (closes #4).
 
@@ -14,9 +54,8 @@ Support NovaLux12/agent-identity-kit v1.1–v1.3 schemas (closes #4).
 
 **Docs:** README "About the spec" now documents v1.0–v1.3 multi-schema support; `scripts/update-schema.sh` refreshed to sync all versions.
 
-## 0.3.0 — 2026-08-05 (graph feature, now folded into 0.3.0 release)
+### `--graph` output (added 2026-08-05, shipped in 0.3.0)
 
-## 0.3.0 — 2026-08-05
 
 Add `--graph` output: a DOT digraph of an agent card's structure for
 visualisation with Graphviz.
@@ -46,11 +85,6 @@ balance, green/amber/red colouring, missing endpoints, missing
 updated_at, schema-error bleed, invalid-JSON handling, and
 protocol emission (9 new; total 52).
 
-# Changelog
-
-All notable changes to `agent-validate` are documented here. The project
-does **not** follow strict SemVer yet (we're pre-0.2); the format is
-loose-keep-a-tidy-trail.
 
 ## 0.2.0 — 2026-07-03
 
