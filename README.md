@@ -44,7 +44,8 @@ brew install NovaLux12/tap/agent-validate
 [Releases](https://github.com/NovaLux12/agent-validate/releases):
 
 ```sh
-curl -L https://github.com/NovaLux12/agent-validate/releases/latest/download/agent-validate_linux_amd64.tar.gz | tar xz
+curl -L https://github.com/NovaLux12/agent-validate/releases/latest/download/agent-validate_linux_amd64 -o agent-validate
+chmod +x agent-validate
 sudo mv agent-validate /usr/local/bin/
 ```
 
@@ -262,8 +263,9 @@ Or with the prebuilt binary:
 ```yaml
 - uses: actions/checkout@v4
 - run: |
-    curl -L https://github.com/NovaLux12/agent-validate/releases/latest/download/agent-validate_linux_amd64.tar.gz \
-      | tar xz -C /usr/local/bin agent-validate
+    curl -L https://github.com/NovaLux12/agent-validate/releases/latest/download/agent-validate_linux_amd64 \
+      -o /usr/local/bin/agent-validate
+    chmod +x /usr/local/bin/agent-validate
 - run: agent-validate --lint-warnings-fail ./agent.json
 ```
 
