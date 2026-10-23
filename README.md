@@ -2,7 +2,8 @@
 
 Single-binary CLI to validate `agent.json` identity cards against the
 [NovaLux12/agent-identity-kit](https://github.com/NovaLux12/agent-identity-kit)
-v1.0–v1.3 JSON Schemas. Zero runtime dependencies, optional `--lint` advisory
+v1.0–v1.3 JSON Schemas. No external runtime to install alongside it, optional
+`--lint` advisory
 checks, exit codes ready for CI. Auto-detects card version (`version` / `$schema`)
 and validates against the matching bundled schema.
 
@@ -27,8 +28,9 @@ means:
 - No machine-readable output — Ajv's errors are nice for humans but
   hard to grep or post-process in a pipeline.
 
-`agent-validate` is the same job in a single ~7 MB static binary with
-no runtime. It also layers on a small set of soft **lint rules** that
+`agent-validate` is the same job in a single ~7 MB binary with no external
+runtime. The `linux` builds are dynamically linked against glibc; the Go
+modules it needs are compiled in. It also layers on a small set of soft **lint rules** that
 flag common mistakes JSON Schema can't express (free-mail handles,
 duplicate capability tags, missing `endpoints.card`, etc.).
 
