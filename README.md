@@ -272,8 +272,11 @@ Or with the prebuilt binary:
 ## About the spec
 
 `agent-validate` validates against **NovaLux12/agent-identity-kit v1.0–v1.3**.
+That repository is the canonical spec — it is a maintained fork of
+`reflectt/agent-identity-kit`, which has had no commits since 2026-02-05.
+
 It bundles all four schemas (`agent.schema.json` for v1.0 and
-`agent-card.v1.1.json` / `v1.2.json` / `v1.3.json` for the fork lineage)
+`agent-card.v1.1.json` / `v1.2.json` / `v1.3.json` for v1.1 and later)
 and auto-selects the correct one from the card's `version` field (or
 `$schema` URL hint, falling back to the latest v1.3 which is
 backward-compatible with all prior versions). See `SupportedVersions()`
@@ -309,7 +312,7 @@ similar-looking but **different** Agent Card shape (`name`,
 `description`, `version`, `supportedInterfaces`, `capabilities`,
 `securitySchemes`, `defaultInputModes`, `defaultOutputModes`,
 `skills`). Cards written for one will fail validation against the
-other. This tool targets the **foragents.dev** v1 shape only.
+other. This tool targets the **agent-identity-kit** v1 shape only.
 
 If you need both, run two validators; or open an issue requesting
 A2A schema support here.
@@ -319,7 +322,7 @@ A2A schema support here.
 `pkg/agentvalidate/schema/` bundles verbatim copies of
 `agent.schema.json` (v1.0) and `agent-card.v1.1.json` / `v1.2.json` /
 `v1.3.json` from `NovaLux12/agent-identity-kit`. To refresh against a
-newer upstream:
+newer version of the spec:
 
 ```sh
 ./scripts/update-schema.sh
