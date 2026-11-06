@@ -44,9 +44,14 @@ func (o FetchOptions) withDefaults() FetchOptions {
 }
 
 // Version is the agent-validate release tag, surfaced in the default
-// User-Agent and printed by the CLI's --version flag. Bump in lockstep
-// with CHANGELOG.md.
-const Version = "0.3.0"
+// User-Agent on every outbound fetch. The release build overrides it with
+// -X, so a tag cut from this tree cannot misreport itself; the literal below
+// is the dev default and is what `go run` uses.
+//
+// It drifted once already: v0.3.1 shipped with this const still at "0.3.0",
+// so --version printed 0.3.1 while the User-Agent told every remote host
+// agent-validate/0.3.0. Stamping at build time removes the class.
+var Version = "0.3.1"
 
 // FetchURL retrieves an agent.json from a remote URL. It returns the
 // raw bytes so callers can pass them straight to Validate and Lint.

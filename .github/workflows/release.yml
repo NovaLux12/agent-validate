@@ -29,7 +29,7 @@ jobs:
           CGO_ENABLED: 0
         run: |
           mkdir -p dist
-          LDFLAGS="-s -w -X main.toolVersion=${GITHUB_REF_NAME}"
+          LDFLAGS="-s -w -X main.toolVersion=${GITHUB_REF_NAME} -X github.com/NovaLux12/agent-validate/pkg/agentvalidate.Version=${GITHUB_REF_NAME}"
           GOOS=linux  GOARCH=amd64 go build -ldflags "$LDFLAGS" -o dist/agent-validate_linux_amd64   ./cmd/agent-validate
           GOOS=linux  GOARCH=arm64 go build -ldflags "$LDFLAGS" -o dist/agent-validate_linux_arm64   ./cmd/agent-validate
           GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o dist/agent-validate_darwin_amd64  ./cmd/agent-validate
